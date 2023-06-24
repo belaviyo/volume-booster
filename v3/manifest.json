@@ -1,0 +1,33 @@
+{
+  "name": "YouTube™ Volume Booster",
+  "description": "Increase the volume of the YouTube™ player twice, resembling the VLC player",
+  "version": "0.1.0",
+  "manifest_version": 3,
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://www.youtube.com/*"
+  ],
+  "background": {
+    "service_worker": "worker.js"
+  },
+  "content_scripts": [{
+    "matches": ["*://www.youtube.com/*"],
+    "js": ["data/inject.js"],
+    "css": ["data/inject.css"],
+    "run_at": "document_start",
+    "all_frames": true
+  }],
+  "homepage_url": "https://webextension.org/listing/volume-booster.html?from=youtube",
+  "icons": {
+    "16": "data/icons/16.png",
+    "32": "data/icons/32.png",
+    "48": "data/icons/48.png",
+    "64": "data/icons/64.png",
+    "128": "data/icons/128.png",
+    "256": "data/icons/256.png",
+    "512": "data/icons/512.png"
+  }
+}

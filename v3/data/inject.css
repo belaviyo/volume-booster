@@ -1,0 +1,6 @@
+.ytp-boost-button {
+  fill: #7b8790;
+}
+.ytp-boost-button.boosting {
+  fill: #fff;
+}
