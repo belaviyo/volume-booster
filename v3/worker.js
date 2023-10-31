@@ -1,20 +1,26 @@
 'use strict';
 
 chrome.runtime.onMessage.addListener((request, sender, response) => {
+  const options = {
+    target: {
+      tabId: sender.tab.id,
+      frameIds: [sender.frameId]
+    },
+    world: 'MAIN'
+  };
+
   if (request.method === 'apply_boost') {
     chrome.storage.local.get({
       boost: 2
     }, prefs => {
       chrome.scripting.executeScript({
-        target: {
-          tabId: sender.tab.id,
-          frameIds: [sender.frameId]
-        },
-        world: 'MAIN',
+        ...options,
         func: value => {
           try {
-            const e = document.querySelector('.html5-video-player');
-            const video = e.querySelector('video');
+            const player = [...document.querySelectorAll('.html5-video-player')].sort((a, b) => {
+              return b.offsetHeight - a.offsetHeight;
+            }).shift();
+            const video = player.querySelector('video');
             let context;
             let source;
             if (video.booster) {
@@ -30,6 +36,7 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
             source.connect(preamp);
             preamp.connect(context.destination);
             video.booster = source;
+            video.preamp = preamp;
 
             // Firefox
             if (document.currentScript) {
@@ -53,15 +60,13 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
   }
   else if (request.method === 'revoke_boost') {
     chrome.scripting.executeScript({
-      target: {
-        tabId: sender.tab.id,
-        frameIds: [sender.frameId]
-      },
-      world: 'MAIN',
+      ...options,
       func: () => {
         try {
-          const e = document.querySelector('.html5-video-player');
-          const video = e.querySelector('video');
+          const player = [...document.querySelectorAll('.html5-video-player')].sort((a, b) => {
+            return b.offsetHeight - a.offsetHeight;
+          }).shift();
+          const video = player.querySelector('video');
           const {booster} = video;
           booster.disconnect();
           booster.connect(booster.context.destination);
@@ -83,6 +88,25 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
     }).then(a => response(a[0].result));
 
     return true;
+  }
+  else if (request.method === 'adjust_boost') {
+    chrome.scripting.executeScript({
+      ...options,
+      func: value => {
+        try {
+          const player = [...document.querySelectorAll('.html5-video-player')].sort((a, b) => {
+            return b.offsetHeight - a.offsetHeight;
+          }).shift();
+          const video = player.querySelector('video');
+
+          if (video.preamp) {
+            video.preamp.gain.value = value;
+          }
+        }
+        catch (e) {}
+      },
+      args: [request.boost]
+    });
   }
 });
 
