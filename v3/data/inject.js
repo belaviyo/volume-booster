@@ -58,12 +58,13 @@ Use Shift + Click to adjust boosting level or assign keyboard shortcuts from the
         if (e.shiftKey) {
           const v = prompt('Insert the new boosting level (2, 3, or 4)', prefs.boost)?.trim();
           if (v === '2' || v === '3' || v === '4') {
+            prefs.boost = parseInt(v);
             chrome.storage.local.set({
-              boost: parseInt(v)
+              boost: prefs.boost
             });
             chrome.runtime.sendMessage({
               method: 'adjust_boost',
-              boost: parseInt(v)
+              boost: prefs.boost
             });
             text.textContent = v + 'x';
           }
