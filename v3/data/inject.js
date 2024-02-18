@@ -20,13 +20,13 @@ const observe = () => {
     chrome.storage.local.get({
       'boost': 2
     }, prefs => {
-      const msg = `Boost volume ${prefs.boost}x (%%)
+      const msg = `Boost volume NNx (%%)
 
-Shift + Click to adjust boosting level`;
+Use Shift + Click to adjust boosting level or assign keyboard shortcuts from the extensions manager`;
       const boost = Object.assign(settings.cloneNode(true), {
         textContent: '',
         style: '',
-        title: msg.replace('%%', 'disabled')
+        title: msg.replace('NN', prefs.boost).replace('%%', 'disabled')
       });
       boost.classList.replace('ytp-settings-button', 'ytp-boost-button');
       const svg = document.createElementNS(svgns, 'svg');
@@ -47,22 +47,27 @@ Shift + Click to adjust boosting level`;
       observe.busy = false;
 
       boost.addEventListener('click', e => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (e.detail && e.detail.method === 'change-boost') {
+          prefs.boost = e.detail.boost;
+          text.textContent = prefs.boost + 'x';
+        }
+
         if (e.shiftKey) {
-          chrome.storage.local.get({
-            boost: 2
-          }, prefs => {
-            const v = prompt('Insert the new boosting level (2, 3, or 4)', prefs.boost)?.trim();
-            if (v === '2' || v === '3' || v === '4') {
-              chrome.storage.local.set({
-                boost: parseInt(v)
-              });
-              chrome.runtime.sendMessage({
-                method: 'adjust_boost',
-                boost: parseInt(v)
-              });
-              text.textContent = v + 'x';
-            }
-          });
+          const v = prompt('Insert the new boosting level (2, 3, or 4)', prefs.boost)?.trim();
+          if (v === '2' || v === '3' || v === '4') {
+            chrome.storage.local.set({
+              boost: parseInt(v)
+            });
+            chrome.runtime.sendMessage({
+              method: 'adjust_boost',
+              boost: parseInt(v)
+            });
+            text.textContent = v + 'x';
+          }
+
           return;
         }
 
@@ -71,7 +76,7 @@ Shift + Click to adjust boosting level`;
             method: 'revoke_boost'
           }, () => {
             boost.classList.remove('boosting');
-            boost.title = msg.replace('%%', 'disabled');
+            boost.title = msg.replace('NN', prefs.boost).replace('%%', 'disabled');
           });
         }
         else {
@@ -80,7 +85,7 @@ Shift + Click to adjust boosting level`;
           }, r => {
             if (r === true || r === 'true') {
               boost.classList.add('boosting');
-              boost.title = msg.replace('%%', 'enabled');
+              boost.title = msg.replace('NN', prefs.boost).replace('%%', 'enabled');
             }
             else {
               alert('Cannot boost this video: ' + r);

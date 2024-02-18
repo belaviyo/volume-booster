@@ -29,5 +29,16 @@
     "128": "/data/icons/128.png",
     "256": "/data/icons/256.png",
     "512": "/data/icons/512.png"
+  },
+  "commands": {
+    "boost-2x": {
+      "description": "toggle and adjust 2x boosting"
+    },
+    "boost-3x": {
+      "description": "toggle and adjust 3x boosting"
+    },
+    "boost-4x": {
+      "description": "toggle and adjust 4x boosting"
+    }
   }
 }
