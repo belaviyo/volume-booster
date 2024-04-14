@@ -31,6 +31,9 @@
     "512": "/data/icons/512.png"
   },
   "commands": {
+    "boost": {
+      "description": "toggle boosting"
+    },
     "boost-2x": {
       "description": "toggle and adjust 2x boosting"
     },

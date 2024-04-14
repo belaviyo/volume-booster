@@ -115,25 +115,38 @@ chrome.commands.onCommand.addListener(cmd => chrome.tabs.query({
   lastFocusedWindow: true
 }, tabs => {
   if (tabs && tabs[0]) {
-    const boost = parseInt(cmd.slice(6, 7));
-    // update boost value
-    chrome.storage.local.set({
-      boost
-    }, () => chrome.scripting.executeScript({
-      target: {
-        tabId: tabs[0].id
-      },
-      func: boost => {
-        const button = document.querySelector('.ytp-boost-button');
-        button.dispatchEvent(new CustomEvent('click', {
-          detail: {
-            method: 'change-boost',
-            boost
-          }
-        }));
-      },
-      args: [boost]
-    }));
+    if (cmd === 'boost') {
+      chrome.scripting.executeScript({
+        target: {
+          tabId: tabs[0].id
+        },
+        func: () => {
+          const button = document.querySelector('.ytp-boost-button');
+          button.click();
+        }
+      });
+    }
+    else {
+      const boost = parseInt(cmd.slice(6, 7));
+      // update boost value
+      chrome.storage.local.set({
+        boost
+      }, () => chrome.scripting.executeScript({
+        target: {
+          tabId: tabs[0].id
+        },
+        func: boost => {
+          const button = document.querySelector('.ytp-boost-button');
+          button.dispatchEvent(new CustomEvent('click', {
+            detail: {
+              method: 'change-boost',
+              boost
+            }
+          }));
+        },
+        args: [boost]
+      }));
+    }
   }
 }));
 
