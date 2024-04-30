@@ -1,7 +1,7 @@
 {
   "name": "Volume Booster for YouTube™",
   "description": "Increase the volume of the YouTube™ player twice, resembling the VLC player",
-  "version": "0.1.4",
+  "version": "0.1.6",
   "manifest_version": 3,
   "permissions": [
     "storage",

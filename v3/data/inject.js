@@ -35,17 +35,36 @@ const observe = () => {
       const svg = document.createElementNS(svgns, 'svg');
       svg.setAttribute('height', '100%');
       svg.setAttribute('version', '1.1');
-      svg.setAttribute('viewBox', '0 0 42 42');
+      svg.setAttribute('viewBox', '0 0 36 36');
+
+      const use = document.createElementNS(svgns, 'use');
+      use.setAttribute('class', 'ytp-svg-shadow');
+      use.setAttribute('href', '#ytp-bv-1');
+
+      const rect = document.createElementNS(svgns, 'rect');
+      rect.setAttribute('fill-opacity', '0.3');
+
+      const update = v => {
+        const wide = v.toString().includes('.');
+        rect.setAttribute('width', wide ? '24' : '18');
+        rect.setAttribute('x', wide ? '6' : '9');
+        text.textContent = v + 'x';
+      };
+
+      rect.setAttribute('y', '11.5');
+      rect.setAttribute('rx', '1.5');
+      rect.setAttribute('ry', '1.5');
+      rect.setAttribute('height', '13');
+      rect.setAttribute('id', 'ytp-bv-1');
       const text = document.createElementNS(svgns, 'text');
-      text.setAttribute('x', '21');
-      text.setAttribute('y', '21');
+      text.setAttribute('x', '18');
+      text.setAttribute('y', '18.5');
       text.setAttribute('dominant-baseline', 'middle');
       text.setAttribute('text-anchor', 'middle');
-      text.setAttribute('font-size', '109%');
-      text.textContent = prefs.boost + 'x';
+      update(prefs.boost);
 
-      svg.appendChild(text);
-      boost.appendChild(svg);
+      svg.append(use, rect, text);
+      boost.append(svg);
       const e = player.querySelector(prefs.position);
       if (e) {
         e.insertAdjacentElement('beforebegin', boost);
@@ -61,7 +80,7 @@ const observe = () => {
 
         if (e.detail && e.detail.method === 'change-boost') {
           prefs.boost = e.detail.boost;
-          text.textContent = prefs.boost + 'x';
+          update(prefs.boost);
         }
 
         if (e.shiftKey) {
@@ -77,7 +96,7 @@ const observe = () => {
               method: 'adjust_boost',
               boost: prefs.boost
             });
-            text.textContent = vn + 'x';
+            update(vn);
           }
 
           return;
@@ -98,26 +117,26 @@ const observe = () => {
           }
           return;
         }
-
-        if (boost.classList.contains('boosting')) {
-          chrome.runtime.sendMessage({
-            method: 'revoke_boost'
-          }, () => {
-            boost.classList.remove('boosting');
-            boost.title = msg.replace('NN', prefs.boost).replace('%%', 'disabled');
-          });
-        }
-        else {
+        // toggle on and off
+        if (rect.hasAttribute('fill-opacity')) { // disabled
           chrome.runtime.sendMessage({
             method: 'apply_boost'
           }, r => {
             if (r === true || r === 'true') {
-              boost.classList.add('boosting');
+              rect.removeAttribute('fill-opacity');
               boost.title = msg.replace('NN', prefs.boost).replace('%%', 'enabled');
             }
             else {
               alert('Cannot boost this video: ' + r);
             }
+          });
+        }
+        else { // enable
+          chrome.runtime.sendMessage({
+            method: 'revoke_boost'
+          }, () => {
+            rect.setAttribute('fill-opacity', '0.3');
+            boost.title = msg.replace('NN', prefs.boost).replace('%%', 'disabled');
           });
         }
       });

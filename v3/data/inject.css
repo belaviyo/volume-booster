@@ -1,6 +1,8 @@
-.ytp-boost-button {
-  fill: #7b8790;
-}
-.ytp-boost-button.boosting {
+.ytp-boost-button rect {
   fill: #fff;
+}
+.ytp-boost-button text {
+  fill: #000;
+  font-size: 9px;
+  font-weight: bold;
 }
