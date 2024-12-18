@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" href="index.css">
+  <link rel="icon" type="image/png" href="/data/icons/32.png">
+  <title>Options Page :: Volume Booster for YouTube™</title>
+</head>
+<body>
+  <form>
+    <div class="dbt">
+      <label for="button">Hide the booster button on the YouTube player</label>
+      <input type="checkbox" id="button">
+      <label for="boost">Boosting level (0.1 - 4)</label>
+      <input type="number" id="boost" min="0.1" max="4" step="0.1" required>
+      <label for="position">Adjust button's position</label>
+      <input type="text" id="position" required>
+    </div>
+    <div>
+      <input type="submit" value="Save Options">
+      <span id="toast"></span>
+    </div>
+  </form>
+  <p class="note">You can hide the booster button and use keyboard shortcuts instead. Additionally, the action button can be used to toggle boosting mode on and off.</p>
+  <script type="text/javascript" src="index.js"></script>
+</body>
+</html>

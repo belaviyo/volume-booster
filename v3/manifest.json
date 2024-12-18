@@ -1,17 +1,19 @@
 {
   "name": "Volume Booster for YouTube™",
   "description": "Increase the volume of the YouTube™ player twice, resembling the VLC player",
-  "version": "0.1.6",
+  "version": "0.1.8",
   "manifest_version": 3,
   "permissions": [
     "storage",
-    "scripting"
+    "scripting",
+    "declarativeContent"
   ],
   "host_permissions": [
     "*://www.youtube.com/*"
   ],
   "background": {
-    "service_worker": "worker.js"
+    "service_worker": "worker.js",
+    "scripts": ["worker.js"]
   },
   "content_scripts": [{
     "matches": ["*://www.youtube.com/*"],
@@ -30,6 +32,13 @@
     "256": "/data/icons/256.png",
     "512": "/data/icons/512.png"
   },
+  "action": {
+    "default_icon": {
+      "16": "/data/icons/disabled/16.png",
+      "32": "/data/icons/disabled/32.png"
+    },
+    "default_title": "Toggle the booster button on YouTube videos; if not, open the YouTube homepage."
+  },
   "commands": {
     "boost": {
       "description": "toggle boosting"
@@ -42,6 +51,16 @@
     },
     "boost-4x": {
       "description": "toggle and adjust 4x boosting"
+    }
+  },
+  "options_ui": {
+    "page": "/data/options/index.html",
+    "open_in_tab": true
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{486ba9c7-0bfd-4148-928f-5c6044f46b56}",
+      "strict_min_version": "128.0"
     }
   }
 }

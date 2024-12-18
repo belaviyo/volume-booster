@@ -6,3 +6,6 @@
   font-size: 9px;
   font-weight: bold;
 }
+.ytp-boost-button.hidden {
+  display: none;
+}

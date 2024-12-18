@@ -1,5 +1,35 @@
 'use strict';
 
+chrome.action.onClicked.addListener(tab => {
+  const href = tab.url || '';
+  if (href?.includes('www.youtube.com/watch')) {
+    chrome.scripting.executeScript({
+      target: {
+        tabId: tab.id
+      },
+      func: () => {
+        document.querySelector('.ytp-boost-button').click();
+      }
+    });
+  }
+  else {
+    chrome.tabs.create({
+      url: 'https://www.youtube.com/',
+      index: tab.index + 1
+    });
+  }
+});
+
+const icon = (tabId, b) => {
+  chrome.action.setIcon({
+    tabId,
+    path: {
+      '16': '/data/icons/' + (b ? '' : 'disabled/') + '16.png',
+      '32': '/data/icons/' + (b ? '' : 'disabled/') + '32.png'
+    }
+  });
+};
+
 chrome.runtime.onMessage.addListener((request, sender, response) => {
   const options = {
     target: {
@@ -38,23 +68,20 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
             video.booster = source;
             video.preamp = preamp;
 
-            // Firefox
-            if (document.currentScript) {
-              document.currentScript.dataset.result = true;
-            }
             return true;
           }
           catch (e) {
             console.error(e);
-            // Firefox
-            if (document.currentScript) {
-              document.currentScript.dataset.result = e.message;
-            }
             return e.message;
           }
         },
         args: [prefs.boost]
-      }).then(a => response(a[0].result));
+      }).then(a => {
+        if (a[0].result === true) {
+          icon(sender.tab.id, true);
+        }
+        response(a[0].result);
+      });
     });
     return true;
   }
@@ -70,22 +97,18 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
           const {booster} = video;
           booster.disconnect();
           booster.connect(booster.context.destination);
-          // Firefox
-          if (document.currentScript) {
-            document.currentScript.dataset.result = true;
-          }
           return true;
         }
         catch (e) {
-          console.error(e);
-          // Firefox
-          if (document.currentScript) {
-            document.currentScript.dataset.result = e.message;
-          }
           return e.message;
         }
       }
-    }).then(a => response(a[0].result));
+    }).then(a => {
+      if (a[0].result === true) {
+        icon(sender.tab.id, false);
+      }
+      response(a[0].result);
+    });
 
     return true;
   }
@@ -154,8 +177,7 @@ chrome.commands.onCommand.addListener(cmd => chrome.tabs.query({
 {
   const {management, runtime: {onInstalled, setUninstallURL, getManifest}, storage, tabs} = chrome;
   if (navigator.webdriver !== true) {
-    const page = getManifest().homepage_url;
-    const {name, version} = getManifest();
+    const {homepage_url: page, name, version} = getManifest();
     onInstalled.addListener(({reason, previousVersion}) => {
       management.getSelf(({installType}) => installType === 'normal' && storage.local.get({
         'faqs': true,
@@ -165,7 +187,7 @@ chrome.commands.onCommand.addListener(cmd => chrome.tabs.query({
           const doUpdate = (Date.now() - prefs['last-update']) / 1000 / 60 / 60 / 24 > 45;
           if (doUpdate && previousVersion !== version) {
             tabs.query({active: true, lastFocusedWindow: true}, tbs => tabs.create({
-              url: page + '&version=' + version + (previousVersion ? '&p=' + previousVersion : '') + '&type=' + reason,
+              url: page + '?version=' + version + (previousVersion ? '&p=' + previousVersion : '') + '&type=' + reason,
               active: reason === 'install',
               ...(tbs && tbs.length && {index: tbs[0].index + 1})
             }));
@@ -174,6 +196,6 @@ chrome.commands.onCommand.addListener(cmd => chrome.tabs.query({
         }
       }));
     });
-    setUninstallURL(page + '&rd=feedback&name=' + encodeURIComponent(name) + '&version=' + version);
+    setUninstallURL(page + '?rd=feedback&name=' + encodeURIComponent(name) + '&version=' + version);
   }
 }

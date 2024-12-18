@@ -19,7 +19,8 @@ const observe = () => {
     observe.busy = true;
     chrome.storage.local.get({
       'boost': 2,
-      'position': '.ytp-settings-button'
+      'position': '.ytp-settings-button',
+      'button': true
     }, prefs => {
       const msg = `Boost volume NNx (%%)
 
@@ -31,6 +32,9 @@ const observe = () => {
         title: msg.replace('NN', prefs.boost).replace('%%', 'disabled')
       });
       boost.classList.replace('ytp-settings-button', 'ytp-boost-button');
+      if (prefs.button === false) {
+        boost.classList.add('hidden');
+      }
 
       const svg = document.createElementNS(svgns, 'svg');
       svg.setAttribute('height', '100%');
