@@ -14,6 +14,9 @@ const observe = () => {
 
   const svgns = 'http://www.w3.org/2000/svg';
   const settings = player.querySelector('.ytp-settings-button');
+
+  const oldUI = !!settings.querySelector('svg[height="100%"]');
+
   const boost = player.querySelector('.ytp-boost-button');
   if (settings && !boost) {
     observe.busy = true;
@@ -37,37 +40,41 @@ const observe = () => {
       }
 
       const svg = document.createElementNS(svgns, 'svg');
-      svg.setAttribute('height', '100%');
+      if (oldUI) {
+        svg.setAttribute('height', '100%');
+        svg.style.scale = '50%';
+      }
+      else {
+        svg.setAttribute('height', '24');
+      }
       svg.setAttribute('version', '1.1');
-      svg.setAttribute('viewBox', '0 0 36 36');
-
-      const use = document.createElementNS(svgns, 'use');
-      use.setAttribute('class', 'ytp-svg-shadow');
-      use.setAttribute('href', '#ytp-bv-1');
+      svg.setAttribute('viewBox', '0 0 24 24');
 
       const rect = document.createElementNS(svgns, 'rect');
       rect.setAttribute('fill-opacity', '0.3');
 
       const update = v => {
         const wide = v.toString().includes('.');
-        rect.setAttribute('width', wide ? '24' : '18');
-        rect.setAttribute('x', wide ? '6' : '9');
+        text.style['font-size'] = wide ? '10px' : '14px';
         text.textContent = v + 'x';
       };
 
-      rect.setAttribute('y', '11.5');
-      rect.setAttribute('rx', '1.5');
-      rect.setAttribute('ry', '1.5');
-      rect.setAttribute('height', '13');
+      rect.setAttribute('width', 24);
+      rect.setAttribute('x', 0);
+      rect.setAttribute('y', 2);
+      rect.setAttribute('rx', 1.5);
+      rect.setAttribute('ry', 1.5);
+      rect.setAttribute('height', 20);
       rect.setAttribute('id', 'ytp-bv-1');
       const text = document.createElementNS(svgns, 'text');
-      text.setAttribute('x', '18');
-      text.setAttribute('y', '18.5');
+      text.setAttribute('x', 12);
+      text.setAttribute('y', 12);
       text.setAttribute('dominant-baseline', 'middle');
       text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('fill', '#d0d0d0');
       update(prefs.boost);
 
-      svg.append(use, rect, text);
+      svg.append(rect, text);
       boost.append(svg);
       const e = player.querySelector(prefs.position);
       if (e) {
@@ -128,6 +135,7 @@ const observe = () => {
           }, r => {
             if (r === true || r === 'true') {
               rect.removeAttribute('fill-opacity');
+              text.setAttribute('fill', '#000');
               boost.title = msg.replace('NN', prefs.boost).replace('%%', 'enabled');
             }
             else {
@@ -140,6 +148,7 @@ const observe = () => {
             method: 'revoke_boost'
           }, () => {
             rect.setAttribute('fill-opacity', '0.3');
+            text.setAttribute('fill', '#d0d0d0');
             boost.title = msg.replace('NN', prefs.boost).replace('%%', 'disabled');
           });
         }
