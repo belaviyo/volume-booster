@@ -1,0 +1,59 @@
+{
+  "name": "Volume Booster for Twitch™",
+  "description": "Boost the Twitch™ player volume up to 4×, similar to VLC player.",
+  "version": "0.1.0",
+  "manifest_version": 3,
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://www.twitch.tv/*"
+  ],
+  "background": {
+    "service_worker": "worker.js",
+    "scripts": ["worker.js"]
+  },
+  "content_scripts": [{
+    "matches": ["*://www.twitch.tv/*"],
+    "js": ["data/inject.js"],
+    "css": ["data/inject.css"],
+    "run_at": "document_start",
+    "all_frames": true
+  }],
+  "homepage_url": "https://webextension.org/listing/volume-booster.html?from=twitch",
+  "icons": {
+    "16": "data/icons/16.png",
+    "32": "data/icons/32.png",
+    "48": "data/icons/48.png",
+    "64": "data/icons/64.png",
+    "128": "data/icons/128.png",
+    "256": "data/icons/256.png",
+    "512": "data/icons/512.png"
+  },
+  "action": {
+    "default_icon": {
+      "16": "data/icons/disabled/16.png",
+      "32": "data/icons/disabled/32.png"
+    },
+    "default_title": "Toggle the booster button on Twitch videos; if not, open the Twitch homepage."
+  },
+  "commands": {
+    "boost": {
+      "description": "Toggle boosting"
+    },
+    "boost-2x": {
+      "description": "Toggle and adjust 2x boosting"
+    },
+    "boost-3x": {
+      "description": "Toggle and adjust 3x boosting"
+    },
+    "boost-4x": {
+      "description": "Toggle and adjust 4x boosting"
+    }
+  },
+  "options_ui": {
+    "page": "data/options/index.html",
+    "open_in_tab": true
+  }
+}

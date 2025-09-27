@@ -1,0 +1,14 @@
+.ytp-boost-button {
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.ytp-boost-button rect {
+  fill: #fff;
+}
+.ytp-boost-button text {
+  font-weight: bold;
+}
+.ytp-boost-button.hidden {
+  display: none;
+}

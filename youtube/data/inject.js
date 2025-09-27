@@ -15,10 +15,9 @@ const observe = () => {
   const svgns = 'http://www.w3.org/2000/svg';
   const settings = player.querySelector('.ytp-settings-button');
 
-  const oldUI = !!settings.querySelector('svg[height="100%"]');
-
   const boost = player.querySelector('.ytp-boost-button');
   if (settings && !boost) {
+    const oldUI = !!settings.querySelector('svg[height="100%"]');
     observe.busy = true;
     chrome.storage.local.get({
       'boost': 2,
