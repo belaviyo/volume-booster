@@ -55,5 +55,11 @@
   "options_ui": {
     "page": "data/options/index.html",
     "open_in_tab": true
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{75e6de1e-7755-4d36-9aa5-2ee08d31c98a}",
+      "strict_min_version": "128.0"
+    }
   }
 }

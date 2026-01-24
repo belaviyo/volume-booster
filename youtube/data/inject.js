@@ -4,7 +4,9 @@ const observe = () => {
   if (location.href.includes('/watch?') === false) {
     return;
   }
-  const player = document.querySelector('.html5-video-player');
+  const player = [...document.querySelectorAll('.html5-video-player')]
+    .filter(a => a.offsetHeight)
+    .sort((a, b) => b.offsetHeight - a.offsetHeight).shift();
   if (!player) {
     return;
   }

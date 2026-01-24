@@ -2,7 +2,7 @@
 
 chrome.action.onClicked.addListener(tab => {
   const href = tab.url || '';
-  if (href?.includes('www.twitch.tv/videos/')) {
+  if (href?.includes('www.twitch.tv/')) {
     chrome.scripting.executeScript({
       target: {
         tabId: tab.id
@@ -139,7 +139,10 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
         }
         catch (e) {}
       }
-    }).then(a => response(a[0].result));
+    }).then(a => {
+      // icon(sender.tab.id, a[0].result === true);
+      response(a[0].result);
+    });
 
     return true;
   }

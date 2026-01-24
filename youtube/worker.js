@@ -47,9 +47,9 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
         ...options,
         func: value => {
           try {
-            const player = [...document.querySelectorAll('.html5-video-player')].sort((a, b) => {
-              return b.offsetHeight - a.offsetHeight;
-            }).shift();
+            const player = [...document.querySelectorAll('.html5-video-player')]
+              .filter(a => a.offsetHeight)
+              .sort((a, b) => b.offsetHeight - a.offsetHeight).shift();
             const video = player.querySelector('video');
             let context;
             let source;
@@ -90,9 +90,9 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
       ...options,
       func: () => {
         try {
-          const player = [...document.querySelectorAll('.html5-video-player')].sort((a, b) => {
-            return b.offsetHeight - a.offsetHeight;
-          }).shift();
+          const player = [...document.querySelectorAll('.html5-video-player')]
+            .filter(a => a.offsetHeight)
+            .sort((a, b) => b.offsetHeight - a.offsetHeight).shift();
           const video = player.querySelector('video');
           const {booster} = video;
           booster.disconnect();
@@ -117,9 +117,9 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
       ...options,
       func: value => {
         try {
-          const player = [...document.querySelectorAll('.html5-video-player')].sort((a, b) => {
-            return b.offsetHeight - a.offsetHeight;
-          }).shift();
+          const player = [...document.querySelectorAll('.html5-video-player')]
+            .filter(a => a.offsetHeight)
+            .sort((a, b) => b.offsetHeight - a.offsetHeight).shift();
           const video = player.querySelector('video');
 
           if (video.preamp) {
