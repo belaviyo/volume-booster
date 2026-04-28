@@ -145,12 +145,10 @@ const observe = () => {
               alert('Cannot boost this video: ' + r);
             }
           });
-          if (e.isTrusted) {
-            prefs['state-alt'] = 'on';
-            chrome.storage.local.set({
-              'state-alt': 'on'
-            });
-          }
+          prefs['state-alt'] = 'on';
+          chrome.storage.local.set({
+            'state-alt': 'on'
+          });
         }
         else { // enable
           chrome.runtime.sendMessage({
@@ -160,12 +158,10 @@ const observe = () => {
             text.setAttribute('fill', '#d0d0d0');
             boost.title = msg.replace('NN', prefs.boost).replace('%%', 'disabled');
           });
-          if (e.isTrusted) {
-            prefs['state-alt'] = 'off';
-            chrome.storage.local.set({
-              'state-alt': 'off'
-            });
-          }
+          prefs['state-alt'] = 'off';
+          chrome.storage.local.set({
+            'state-alt': 'off'
+          });
         }
       });
       if (prefs.state === 'on') {
