@@ -1,7 +1,7 @@
 {
   "name": "Volume Booster for YouTube™",
   "description": "Increase the volume of the YouTube™ player twice, resembling the VLC player",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "manifest_version": 3,
   "permissions": [
     "storage",
@@ -59,7 +59,7 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "{486ba9c7-0bfd-4148-928f-5c6044f46b56}",
-      "strict_min_version": "128.0",
+      "strict_min_version": "148.0",
       "data_collection_permissions": {
         "required": ["none"]
       }
