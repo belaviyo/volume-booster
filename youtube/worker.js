@@ -60,6 +60,43 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
             else {
               context = new AudioContext();
               source = context.createMediaElementSource(video);
+              /* The audio of a captured media element only flows through the Web Audio graph.
+                 On Gecko, when the element reaches "ended" (e.g. when a looped video restarts),
+                 the element's underlying audio stream is torn down and a new one is created on
+                 resume, but this MediaElementAudioSourceNode keeps draining the dead stream,
+                 which permanently mutes the video until the user seeks manually. To work around
+                 that, we reconnect the source node once right after playback resumes. The
+                 "playing"/"seeked" listeners do not need to be removed: they are registered with
+                 {once: true} so each cleans itself up after a single invocation, and they are
+                 only armed transiently (re-armed on every "ended", which cannot fire again
+                 before "playing" does), so there is no accumulation across loop cycles. The
+                 "ended" listener itself must stay armed for the lifetime of the element because
+                 every loop restart needs a fresh kick, even after revoke_boost (the element
+                 stays captured either way). Revoke replaces video.boosterKick with the un-routed
+                 topology so a post-revoke kick rebinds without boosting. */
+              video.addEventListener('ended', () => {
+                let done = false;
+                const kick = () => {
+                  if (done) {
+                    return;
+                  }
+                  done = true;
+                  try {
+                    video.boosterKick();
+                  }
+                  catch (e) {}
+                };
+                video.addEventListener('playing', kick, {once: true});
+                video.addEventListener('seeked', kick, {once: true});
+              });
+            }
+            // avoid stacking preamp gain nodes on repeated applies (volume would compound)
+            if (video.preamp) {
+              try {
+                source.disconnect();
+                video.preamp.disconnect();
+              }
+              catch (e) {}
             }
             const preamp = context.createGain();
             preamp.gain.value = value;
@@ -67,6 +104,14 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
             preamp.connect(context.destination);
             video.booster = source;
             video.preamp = preamp;
+            video.boosterKick = () => {
+              source.disconnect();
+              source.connect(video.preamp);
+              video.preamp.connect(context.destination);
+              if (context.state === 'suspended') {
+                context.resume().catch(() => {});
+              }
+            };
 
             return true;
           }
@@ -94,9 +139,25 @@ chrome.runtime.onMessage.addListener((request, sender, response) => {
             .filter(a => a.offsetHeight)
             .sort((a, b) => b.offsetHeight - a.offsetHeight).shift();
           const video = player.querySelector('video');
+          if (!video.booster) {
+            // element was replaced by the player; nothing to revoke
+            return true;
+          }
           const {booster} = video;
           booster.disconnect();
+          if (video.preamp) {
+            video.preamp.disconnect();
+            video.preamp = null;
+          }
           booster.connect(booster.context.destination);
+          // the ended-kick (see apply_boost) stays armed; route it around the removed preamp
+          video.boosterKick = () => {
+            booster.disconnect();
+            booster.connect(booster.context.destination);
+            if (booster.context.state === 'suspended') {
+              booster.context.resume().catch(() => {});
+            }
+          };
           return true;
         }
         catch (e) {

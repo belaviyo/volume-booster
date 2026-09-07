@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loop-restart audio mute repro (MediaElementAudioSourceNode)</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 14px/1.45 system-ui, sans-serif; margin: 0; padding: 16px; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  p.sub { margin: 0 0 12px; opacity: .7; max-width: 110ch; }
+  #bar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 10px 12px; border: 1px solid #8884; border-radius: 8px; margin-bottom: 12px; }
+  fieldset { border: 1px solid #8884; border-radius: 6px; margin: 0; padding: 6px 10px; }
+  fieldset label { margin-right: 10px; }
+  button { padding: 6px 14px; }
+  button:disabled { opacity: .45; }
+  #progress { font-weight: 600; min-width: 160px; }
+  #panels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 1100px) { #panels { grid-template-columns: 1fr; } }
+  .panel { border: 1px solid #8884; border-radius: 8px; padding: 10px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .panel h2 { font-size: 15px; margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel h2 select { font-size: 12px; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; background: #888; flex: none; }
+  .dot.sound { background: #2a2; box-shadow: 0 0 6px #2a2; }
+  .dot.silent { background: #d22; box-shadow: 0 0 6px #d22; }
+  .dot.paused { background: #eb0; }
+  video { width: 100%; height: 90px; background: #000; }
+  .meterwrap { display: flex; align-items: center; gap: 8px; }
+  canvas { flex: 1; height: 26px; border: 1px solid #8884; border-radius: 4px; }
+  .rms { width: 76px; text-align: right; font-variant-numeric: tabular-nums; opacity: .8; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; font-size: 12px; }
+  .chip { border: 1px solid #8884; border-radius: 10px; padding: 1px 8px; opacity: .85; }
+  .seekbar { display: flex; gap: 6px; }
+  .seekbar button { padding: 2px 10px; font-size: 12px; }
+  pre.log { flex: 1; min-height: 150px; max-height: 240px; overflow: auto; background: #8881; border-radius: 6px; padding: 6px 8px; margin: 0; font-size: 11.5px; line-height: 1.35; white-space: pre-wrap; word-break: break-word; }
+  .panel footer { font-size: 11.5px; opacity: .7; }
+  details.help { margin-top: 14px; font-size: 13.5px; max-width: 120ch; }
+  details.help li { margin: 4px 0; }
+  #ua { margin-top: 12px; font-size: 11.5px; opacity: .6; word-break: break-all; }
+  #overlay { position: fixed; inset: 0; background: #000b; display: none; align-items: center; justify-content: center; }
+  #overlay > div { display: flex; flex-direction: column; gap: 8px; }
+  #report { width: 80vw; height: 65vh; font: 12px/1.4 monospace; }
+</style>
+</head>
+<body>
+<h1>Loop-restart audio mute repro</h1>
+<p class="sub">Reproduces the reported Waterfox/LibreWolf bug without the extension: media looped YouTube-style (<code>ended &rarr; seek(0) &rarr; play()</code>) goes silent when the element is routed through <code>createMediaElementSource</code>, while direct playback keeps working. All media is same-origin (generated blob or local file) so there are no CORS confounders.</p>
+
+<div id="bar">
+  <fieldset>
+    <legend>Media source</legend>
+    <label><input type="radio" name="src" value="short" checked> short tone (~20 s)</label>
+    <label><input type="radio" name="src" value="long"> long tone (~11 min)</label>
+    <label><input type="radio" name="src" value="file"> local file</label>
+    <input type="file" id="file" accept="audio/*,video/*" disabled>
+  </fieldset>
+  <fieldset>
+    <legend>Loop mode</legend>
+    <select id="loopmode">
+      <option value="yt" selected>YouTube-style: ended &rarr; seek(0) &rarr; play()</option>
+      <option value="native">native loop attribute</option>
+      <option value="off">no loop (play once)</option>
+    </select>
+  </fieldset>
+  <button id="start">Start all</button>
+  <button id="stop" disabled>Stop</button>
+  <button id="copy">Copy report</button>
+  <span id="progress"></span>
+</div>
+
+<div id="panels"></div>
+
+<details class="help" open>
+  <summary>How to run the test</summary>
+  <ul>
+    <li>Keep the tab <b>visible</b> (background throttling can stall the meter). Start with the short tone.</li>
+    <li><b>Expected if the bug is present:</b> panel A stays audible across loop restarts; panel B goes silent after a restart (red dot, <i>SILENCE DETECTED</i> in its log); pressing <b>+5 s</b> or <b>0:00</b> on panel B restores audio (matches the reporter's workaround); panel C stays audible and its log shows <i>KICK applied</i> — which validates the planned extension fix.</li>
+    <li>If panel B does <b>not</b> mute with the short tone, repeat with the long tone (~11 min, matches the report's duration) and then with a real 10+ minute local file.</li>
+    <li>The <i>native loop attribute</i> mode is a comparison: it takes a different Gecko path and may not trigger the bug.</li>
+    <li>Run once in Chrome/Chromium as a control; no panel should ever mute there.</li>
+    <li>Use <b>Copy report</b> to grab the event timeline + silence episodes for the bug report.</li>
+    <li>This page is a standalone test harness, not part of the extension — delete <code>repro-loop-mute.html</code> before packaging.</li>
+  </ul>
+</details>
+
+<div id="ua"></div>
+
+<div id="overlay">
+  <div>
+    <textarea id="report" readonly></textarea>
+    <div style="display:flex;gap:8px;">
+      <button id="docopy">Copy to clipboard</button>
+      <button id="doclose">Close</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+const $ = s => document.querySelector(s);
+const tick = () => new Promise(r => setTimeout(r, 0));
+
+const state = {
+  running: false,
+  startAt: 0,
+  panels: [],
+  tones: {},
+  fileURL: null,
+  fileLabel: 'none'
+};
+
+const defs = [
+  {id: 'A', title: 'Direct (no Web Audio)', routed: false, kick: false},
+  {id: 'B', title: 'Web Audio routed', routed: true, kick: false},
+  {id: 'C', title: 'Web Audio + auto-kick', routed: true, kick: true}
+];
+
+function h(tag, cls, text) {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+
+function stamp() {
+  return ((performance.now() - state.startAt) / 1000).toFixed(2) + 's';
+}
+
+function mode() {
+  return $('#loopmode').value;
+}
+
+function seekbar(p) {
+  const bar = h('div', 'seekbar');
+  for (const [label, t] of [['0:00', 0], ['+5 s', 5], ['\u22125 s', -5]]) {
+    const b = h('button', null, label);
+    b.addEventListener('click', () => {
+      p.video.currentTime = t === 0 ? 0 : Math.max(0, p.video.currentTime + t);
+    });
+    bar.append(b);
+  }
+  return bar;
+}
+
+function buildPanel(def) {
+  const root = h('section', 'panel');
+  const head = h('h2');
+  const dot = h('span', 'dot');
+  head.append(dot, h('span', null, def.id + ' \u2014 ' + def.title));
+  if (def.kick) {
+    const sel = h('select');
+    sel.id = 'kick';
+    for (const [v, label] of [['reconnect', 'kick: reconnect'], ['suspend', 'kick: suspend+resume'], ['both', 'kick: both']]) {
+      const o = h('option', null, label);
+      o.value = v;
+      sel.append(o);
+    }
+    head.append(sel);
+  }
+  const video = h('video');
+  video.controls = true;
+  video.preload = 'auto';
+  const log = h('pre', 'log');
+  const foot = h('footer');
+  Object.assign(def, {root, video, dot, log, foot, ctx: null, source: null, gain: null, analyser: null, data: null, silentSince: 0, silentLogged: false, silenceEpisodes: [], events: []});
+  if (def.routed) {
+    const mw = h('div', 'meterwrap');
+    const canvas = h('canvas');
+    const rms = h('span', 'rms', '\u2014');
+    mw.append(canvas, rms);
+    const chips = h('div', 'chips');
+    const c1 = h('span', 'chip', 'audio via Web Audio graph');
+    const c2 = h('span', 'chip', 'ctx: \u2014');
+    chips.append(c1, c2);
+    root.append(head, video, mw, chips, seekbar(def), log, foot);
+    Object.assign(def, {canvas, rms, c2});
+    foot.textContent = 'Meter + dot show the audible output of the Web Audio graph. Red = silent while playing.';
+  } else {
+    root.append(head, video, seekbar(def), log, foot);
+    foot.textContent = 'Direct element output \u2014 listen with your ears; no meter is possible without capturing audio (which is the bug condition).';
+  }
+  wirePanel(def);
+  state.panels.push(def);
+  return root;
+}
+
+const grid = $('#panels');
+for (const def of defs) grid.append(buildPanel(def));
+
+function logLine(p, msg) {
+  const line = stamp() + '  ' + msg;
+  p.events.push(line);
+  if (p.events.length > 400) {
+    p.events.splice(0, p.events.length - 400);
+    p.log.textContent = p.events.join('\n');
+  } else {
+    p.log.textContent += (p.log.textContent ? '\n' : '') + line;
+    p.log.scrollTop = p.log.scrollHeight;
+  }
+}
+
+function logEvent(p, name) {
+  const extra = p.ctx ? ' ctx=' + p.ctx.state : '';
+  logLine(p, name + ' t=' + p.video.currentTime.toFixed(2) + extra);
+}
+
+function wirePanel(p) {
+  for (const name of ['play', 'playing', 'pause', 'ended', 'seeking', 'seeked', 'waiting', 'stalled', 'error']) {
+    p.video.addEventListener(name, () => {
+      if (name === 'error' && p.video.error) logLine(p, 'MediaError ' + p.video.error.code);
+      logEvent(p, name);
+    });
+  }
+  p.video.addEventListener('ended', () => onEnded(p));
+  p.video.addEventListener('playing', () => {
+    if (!p.routed) p.dot.className = 'dot sound';
+  });
+  p.video.addEventListener('pause', () => {
+    if (!p.routed) p.dot.className = 'dot paused';
+  });
+  p.video.addEventListener('ended', () => {
+    if (!p.routed && mode() !== 'yt') p.dot.className = 'dot paused';
+  });
+}
+
+function onEnded(p) {
+  if (mode() !== 'yt' || !state.running) return;
+  if (p.kick) armKick(p);
+  setTimeout(() => {
+    if (!state.running) return;
+    logLine(p, 'LOOP: seek(0) + play()');
+    p.video.currentTime = 0;
+    p.video.play().catch(e => logLine(p, 'play() rejected: ' + e.message));
+  }, 0);
+}
+
+function armKick(p) {
+  const s = $('#kick').value;
+  let done = false;
+  const kick = () => {
+    if (done) return;
+    done = true;
+    try {
+      if ((s === 'reconnect' || s === 'both') && p.source) {
+        p.source.disconnect();
+        p.source.connect(p.gain);
+      }
+      if (s === 'suspend' || s === 'both') {
+        p.ctx.suspend().then(() => p.ctx.resume()).catch(e => logLine(p, 'kick resume failed: ' + e.message));
+      }
+      logLine(p, 'KICK applied (' + s + ')');
+    } catch (e) {
+      logLine(p, 'kick failed: ' + e.message);
+    }
+  };
+  p.video.addEventListener('playing', kick, {once: true});
+  p.video.addEventListener('seeked', kick, {once: true});
+}
+
+function ensureGraph(p) {
+  if (p.ctx) return;
+  const ctx = new AudioContext();
+  const source = ctx.createMediaElementSource(p.video);
+  const gain = ctx.createGain();
+  gain.gain.value = 0.4;
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 1024;
+  source.connect(gain);
+  gain.connect(analyser);
+  analyser.connect(ctx.destination);
+  Object.assign(p, {ctx, source, gain, analyser, data: new Uint8Array(analyser.fftSize)});
+  ctx.addEventListener('statechange', () => {
+    p.c2.textContent = 'ctx: ' + ctx.state;
+    logEvent(p, 'ctx-state=' + ctx.state);
+  });
+  requestAnimationFrame(() => meterLoop(p));
+}
+
+function meterLoop(p) {
+  p.analyser.getByteTimeDomainData(p.data);
+  let sum = 0;
+  for (let i = 0; i < p.data.length; i++) {
+    const v = (p.data[i] - 128) / 128;
+    sum += v * v;
+  }
+  const rms = Math.sqrt(sum / p.data.length);
+  p.rms.textContent = rms.toFixed(4);
+  draw(p, rms);
+  const audible = rms > 0.01;
+  const playing = state.running && !p.video.paused && !p.video.ended;
+  const now = performance.now();
+  if (playing && !audible) {
+    if (!p.silentSince) p.silentSince = now;
+    if (!p.silentLogged && now - p.silentSince > 2000) {
+      p.silentLogged = true;
+      p.silenceEpisodes.push({start: stamp()});
+      logLine(p, 'SILENCE DETECTED while playing');
+    }
+    p.dot.className = 'dot silent';
+  } else {
+    if (p.silentLogged) {
+      const ep = p.silenceEpisodes[p.silenceEpisodes.length - 1];
+      if (ep && !ep.end) {
+        ep.end = stamp();
+        logLine(p, 'sound returned at ' + ep.end);
+      }
+      p.silentLogged = false;
+    }
+    p.silentSince = 0;
+    p.dot.className = playing ? (audible ? 'dot sound' : 'dot paused') : 'dot paused';
+  }
+  requestAnimationFrame(() => meterLoop(p));
+}
+
+function draw(p, rms) {
+  const c = p.canvas;
+  const w = c.clientWidth || 200;
+  const hgt = c.clientHeight || 26;
+  if (c.width !== w || c.height !== hgt) {
+    c.width = w;
+    c.height = hgt;
+  }
+  const g = c.getContext('2d');
+  g.clearRect(0, 0, w, hgt);
+  g.fillStyle = '#3a8';
+  g.fillRect(0, 0, Math.min(1, rms * 3) * w, hgt);
+  g.fillStyle = '#8886';
+  g.fillRect(w * 0.01, 0, 1, hgt);
+}
+
+function resetPanel(p) {
+  p.events = [];
+  p.silenceEpisodes = [];
+  p.silentSince = 0;
+  p.silentLogged = false;
+  p.log.textContent = '';
+  p.dot.className = 'dot paused';
+  if (p.rms) p.rms.textContent = '\u2014';
+}
+
+async function getTone(kind) {
+  if (state.tones[kind]) return state.tones[kind];
+  const sr = kind === 'long' ? 22050 : 44100;
+  const dur = kind === 'long' ? 660 : 20;
+  try {
+    $('#progress').textContent = 'rendering ' + dur + ' s tone\u2026';
+    await tick();
+    const octx = new OfflineAudioContext(1, sr * dur, sr);
+    const osc = octx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 660;
+    const g = octx.createGain();
+    g.gain.value = 0;
+    osc.connect(g);
+    g.connect(octx.destination);
+    osc.start(0);
+    for (let t = 0.5; t < dur - 0.7; t += 1.5) {
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.5, t + 0.02);
+      g.gain.setValueAtTime(0.5, t + 0.28);
+      g.gain.linearRampToValueAtTime(0, t + 0.3);
+    }
+    osc.stop(dur);
+    const buf = await octx.startRendering();
+    $('#progress').textContent = 'encoding WAV\u2026';
+    await tick();
+    const url = URL.createObjectURL(await encodeWAV(buf));
+    state.tones[kind] = url;
+    $('#progress').textContent = '';
+    return url;
+  } catch (e) {
+    $('#progress').textContent = 'tone generation failed: ' + e.message;
+    return null;
+  }
+}
+
+async function encodeWAV(buf) {
+  const n = buf.length;
+  const ab = new ArrayBuffer(44 + n * 2);
+  const v = new DataView(ab);
+  const ws = (off, s) => {
+    for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i));
+  };
+  ws(0, 'RIFF');
+  v.setUint32(4, 36 + n * 2, true);
+  ws(8, 'WAVE');
+  ws(12, 'fmt ');
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, 1, true);
+  v.setUint32(24, buf.sampleRate, true);
+  v.setUint32(28, buf.sampleRate * 2, true);
+  v.setUint16(32, 2, true);
+  v.setUint16(34, 16, true);
+  ws(36, 'data');
+  v.setUint32(40, n * 2, true);
+  const d = buf.getChannelData(0);
+  let off = 44;
+  for (let i = 0; i < n; i++) {
+    const s = Math.max(-1, Math.min(1, d[i]));
+    v.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    off += 2;
+    if (i % 2000000 === 1999999) {
+      $('#progress').textContent = 'encoding WAV\u2026 ' + Math.round((i / n) * 100) + '%';
+      await tick();
+    }
+  }
+  return new Blob([ab], {type: 'audio/wav'});
+}
+
+async function startAll() {
+  if (state.running) return;
+  const kind = document.querySelector('input[name=src]:checked').value;
+  let url;
+  if (kind === 'file') {
+    const f = $('#file').files[0];
+    if (!f) {
+      $('#progress').textContent = 'Pick a local file first.';
+      return;
+    }
+    if (!state.fileURL || state.fileLabel !== f.name) {
+      if (state.fileURL) URL.revokeObjectURL(state.fileURL);
+      state.fileURL = URL.createObjectURL(f);
+      state.fileLabel = f.name;
+    }
+    url = state.fileURL;
+  } else {
+    url = await getTone(kind);
+    if (!url) return;
+  }
+  state.startAt = performance.now();
+  state.running = true;
+  $('#stop').disabled = false;
+  $('#loopmode').disabled = true;
+  const lm = mode();
+  for (const p of state.panels) {
+    resetPanel(p);
+    p.video.loop = lm === 'native';
+    p.video.volume = p.routed ? 1 : 0.5;
+    p.video.src = url;
+    if (p.routed) {
+      ensureGraph(p);
+      try {
+        await p.ctx.resume();
+      } catch (e) {}
+      p.c2.textContent = 'ctx: ' + p.ctx.state;
+    }
+    try {
+      await p.video.play();
+    } catch (e) {
+      logLine(p, 'play() rejected: ' + e.message);
+    }
+  }
+}
+
+$('#start').addEventListener('click', startAll);
+
+$('#stop').addEventListener('click', () => {
+  state.running = false;
+  for (const p of state.panels) {
+    p.video.pause();
+    p.video.removeAttribute('src');
+    p.video.load();
+    if (p.ctx) p.ctx.suspend().catch(() => {});
+    p.dot.className = 'dot';
+    if (p.c2) p.c2.textContent = 'ctx: ' + (p.ctx ? p.ctx.state : '\u2014');
+  }
+  $('#stop').disabled = true;
+  $('#loopmode').disabled = false;
+});
+
+for (const r of document.querySelectorAll('input[name=src]')) {
+  r.addEventListener('change', () => {
+    $('#file').disabled = document.querySelector('input[name=src]:checked').value !== 'file';
+  });
+}
+
+function describeSource() {
+  const kind = document.querySelector('input[name=src]:checked').value;
+  if (kind === 'file') return 'local file: ' + state.fileLabel;
+  if (kind === 'short') return 'generated tone, 20 s, 44100 Hz mono WAV (fully buffered)';
+  return 'generated tone, 660 s (11 min), 22050 Hz mono WAV';
+}
+
+function buildReport() {
+  const lines = [];
+  lines.push('Loop-restart audio mute repro \u2014 report');
+  lines.push('Date: ' + new Date().toISOString());
+  lines.push('UA: ' + navigator.userAgent);
+  lines.push('Media: ' + describeSource());
+  lines.push('Loop mode: ' + $('#loopmode').selectedOptions[0].textContent);
+  lines.push('Panel C kick strategy: ' + $('#kick').value);
+  for (const p of state.panels) {
+    lines.push('');
+    lines.push('== Panel ' + p.id + ' \u2014 ' + p.title + ' ==');
+    lines.push('Silence episodes: ' + (p.silenceEpisodes.length ? p.silenceEpisodes.map(e => e.start + ' \u2192 ' + (e.end || 'ongoing')).join('; ') : 'none'));
+    lines.push('Events:');
+    lines.push(...p.events);
+  }
+  return lines.join('\n');
+}
+
+$('#copy').addEventListener('click', () => {
+  $('#report').value = buildReport();
+  $('#overlay').style.display = 'flex';
+});
+
+$('#doclose').addEventListener('click', () => {
+  $('#overlay').style.display = 'none';
+});
+
+$('#docopy').addEventListener('click', () => {
+  const ta = $('#report');
+  ta.focus();
+  ta.select();
+  const fallback = () => document.execCommand('copy');
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(ta.value).catch(fallback);
+  } else {
+    fallback();
+  }
+});
+
+$('#ua').textContent = navigator.userAgent;
+</script>
+</body>
+</html>
